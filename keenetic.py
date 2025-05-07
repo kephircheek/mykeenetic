@@ -15,6 +15,7 @@ class Status(Enum):
     RENEWED_STATIC_ROUTE = 8912996
     DELETED_STATIC_ROUTE = 5046278
     NO_SUCH_ROUTE = 5046328
+    NO_SUCH_INTERFACE = 5046299
 
 
 def auth_hash(login, passwd, token, realm):
