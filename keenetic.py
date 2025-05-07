@@ -6,7 +6,7 @@ import itertools
 import json
 import urllib.parse
 import urllib.request
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from enum import Enum
 
 
@@ -17,6 +17,15 @@ class Status(Enum):
     NO_SUCH_ROUTE = 5046328
     NO_SUCH_INTERFACE = 5046299
     NOT_FOUND = 1179781
+
+    @classmethod
+    def from_json(cls, status):
+        status_key = status["message"].split(":", 1)[0].replace(" ", "_").upper()
+        try:
+            return cls[status_key]
+        except KeyError:
+            print(json.dumps(data))
+            return {status_key: status["code"]}
 
 
 def auth_hash(login, passwd, token, realm):
@@ -91,65 +100,6 @@ def as_route(obj):
     raise ValueError(f"not match to route object: {obj}")
 
 
-def ip_route(opener, endpoint) -> tuple[HostRoute | NetworkRoute, ...]:
-    url = f"http://{endpoint}/rci/ip/route/"
-    req = urllib.request.Request(url)
-    response = opener.open(req)
-    data = response.read().decode("utf-8")
-    routes = json.loads(data)
-    routes = tuple(HostRoute(**r) if "host" in r else NetworkRoute(**r) for r in routes)
-    return routes
-
-
-def _ip_route_batched_update(
-    opener, endpoint, routes: list[HostRoute | NetworkRoute], delete=False
-):
-    batch_size = 1024
-    routes_batches = (routes[i : i + batch_size] for i in range(0, len(routes), batch_size))
-    return list(
-        itertools.chain.from_iterable(
-            _ip_route_update(opener, endpoint, routes_batch, delete=delete)
-            for routes_batch in routes_batches
-        )
-    )
-
-
-def _ip_route_update(opener, endpoint, routes: list[HostRoute | NetworkRoute], delete=False):
-    url = f"http://{endpoint}/rci/"
-    no = {"no": True} if delete else {}
-    data = [{"ip": {"route": asdict(route) | no}} for route in routes]
-    data.append({"system": {"configuration": {"save": True}}})
-    data = json.dumps(data).encode("utf-8")
-    rci_req = urllib.request.Request(url, data=data, method="POST")
-    rci_req.add_header("Content-Type", "application/json")
-    rci_response = opener.open(rci_req)
-    if rci_response.getcode() == 200:
-        response_data = json.loads(rci_response.read().decode("utf-8"))
-        statuses = []
-        for data in response_data:
-            if "system" in data:
-                continue
-            routes = data["ip"]["route"]
-            routes = routes if isinstance(routes, list) else [routes]
-            for route in routes:
-                for status in route["status"]:
-                    status_key = status["message"].split(":", 1)[0].replace(" ", "_").upper()
-                    try:
-                        statuses.append(Status[status_key])
-                    except KeyError as err:
-                        print(json.dumps(data))
-                        statuses.append(str(err))
-        return statuses
-
-
-def ip_route_add(opener, endpoint, routes: list[HostRoute | NetworkRoute]):
-    return _ip_route_batched_update(opener, endpoint, routes)
-
-
-def ip_route_del(opener, endpoint, routes: list[HostRoute | NetworkRoute]):
-    return _ip_route_batched_update(opener, endpoint, routes, delete=True)
-
-
 def cidr_to_ip_and_mask(cidr: str) -> (str, str):
     try:
         network = ipaddress.ip_network(cidr, strict=False)
@@ -217,3 +167,74 @@ def show_system(endpoint, opener):
     """
     url = f"http://{endpoint}/rci/show/system"
     raise NotImplementetError
+
+
+@dataclass(frozen=True)
+class Keenetic:
+    password: str
+    login: str | None = None
+    endpoint: str | None = None
+    opener: urllib.request.OpenerDirector = None
+
+    def auth(self, retry=None):
+        opener = auth(self.endpoint, self.login, self.password, retry=retry)
+        if opener is None:
+            raise RuntimeError(f"can not authorize on '{self.endpoint}' as '{self.login}'")
+        return replace(self, opener=opener)
+
+    def get(self, path=None):
+        path = path or ""
+        url = f"http://{self.endpoint}/rci/{path}"
+        req = urllib.request.Request(url)
+        response = self.opener.open(req)
+        data = response.read().decode("utf-8")
+        return data
+
+    def post(self, data, path=None):
+        path = path or ""
+        url = f"http://{self.endpoint}/rci/{path}"
+        data = json.dumps(data).encode("utf-8")
+        req = urllib.request.Request(url, data=data, method="POST")
+        req.add_header("Content-Type", "application/json")
+        response = self.opener.open(req)
+        if response.getcode() != 200:
+            raise RuntimeError(f"response has code: {rci_response.getcode()} != 200")
+        return json.loads(response.read().decode("utf-8"))
+
+    def ip_route(self) -> tuple[HostRoute | NetworkRoute, ...]:
+        data = self.get("ip/route/")
+        routes = json.loads(data)
+        routes = tuple(HostRoute(**r) if "host" in r else NetworkRoute(**r) for r in routes)
+        return routes
+
+    def _ip_route_update(self, routes: list[HostRoute | NetworkRoute], delete=False):
+        no = {"no": True} if delete else {}
+        data = [{"ip": {"route": asdict(route) | no}} for route in routes]
+        data.append({"system": {"configuration": {"save": True}}})
+        response_data = self.post(data=data)
+        statuses = []
+        for data_amount in response_data:
+            if "system" in data_amount:
+                continue
+            routes = data_amount["ip"]["route"]
+            routes = routes if isinstance(routes, list) else [routes]
+            for route in routes:
+                for status in route["status"]:
+                    statuses.append(Status.from_json(status))
+        return statuses
+
+    def _ip_route_batched_update(self, routes: list[HostRoute | NetworkRoute], delete=False):
+        batch_size = 1024
+        routes_batches = (routes[i : i + batch_size] for i in range(0, len(routes), batch_size))
+        return list(
+            itertools.chain.from_iterable(
+                self._ip_route_update(routes_batch, delete=delete)
+                for routes_batch in routes_batches
+            )
+        )
+
+    def ip_route_add(self, routes: list[HostRoute | NetworkRoute]):
+        return self._ip_route_batched_update(routes)
+
+    def ip_route_del(self, routes: list[HostRoute | NetworkRoute]):
+        return self._ip_route_batched_update(routes, delete=True)

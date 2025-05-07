@@ -5,7 +5,6 @@ from keenetic import HostRoute, NetworkRoute, as_route
 
 
 class TestRouteObject(unittest.TestCase):
-
     def setUp(self):
         self.hroute = HostRoute(interface="Proxy1", comment="test host", host="111.111.111.111")
         self.nroute = NetworkRoute(
