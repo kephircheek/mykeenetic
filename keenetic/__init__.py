@@ -204,26 +204,3 @@ class Keenetic:
 
     def ip_route_del(self, routes: list[HostRoute | NetworkRoute]):
         return self._ip_route_batched_update(routes, delete=True)
-
-    def show_system(self):
-        """
-        Examples
-        --------
-        {
-          "hostname": "Keenetic-0630",
-          "domainname": "WORKGROUP",
-          "cpuload": 2,
-          "memory": "100532/524288",
-          "swap": "0/524284",
-          "memtotal": 524288,
-          "memfree": 366448,
-          "membuffers": 12276,
-          "memcache": 45032,
-          "swaptotal": 524284,
-          "swapfree": 524284,
-          "uptime": "36296",
-          "conntotal": 32768,
-          "connfree": 32563
-        }
-        """
-        return self.run("show system")
