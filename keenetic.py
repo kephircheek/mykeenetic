@@ -111,13 +111,23 @@ class Keenetic:
     login: str | None = None
     endpoint: str | None = None
     opener: urllib.request.OpenerDirector = None
+    secure: bool = False
+
+    @property
+    def endpoint_(self):
+        return self.endpoint or "my.keenetic.net"
+
+    @property
+    def login_(self):
+        return self.login or "admin"
 
     @property
     def base_url(self):
-        return f"http://{self.endpoint}"
+        scheme = "https" if self.secure else "http"
+        return f"{scheme}://{self.endpoint_}"
 
     def auth_hash(self, token, realm):
-        md5_hash = hashlib.md5(f"{self.login}:{realm}:{self.password}".encode()).hexdigest()
+        md5_hash = hashlib.md5(f"{self.login_}:{realm}:{self.password}".encode()).hexdigest()
         sha256_hash = hashlib.sha256(f"{token}{md5_hash}".encode()).hexdigest()
         return sha256_hash
 
@@ -135,7 +145,7 @@ class Keenetic:
                 token = err.headers.get("X-NDM-Challenge")
                 realm = err.headers.get("X-NDM-Realm")
                 auth_hash_ = self.auth_hash(token, realm)
-                data = {"login": self.login, "password": auth_hash_}
+                data = {"login": self.login_, "password": auth_hash_}
                 data = json.dumps(data).encode("utf-8")
                 auth_req = urllib.request.Request(auth_url, data=data, method="POST")
                 auth_req.add_header("Content-Type", "application/json")

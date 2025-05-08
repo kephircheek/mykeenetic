@@ -13,11 +13,11 @@ from keenetic import *
 
 
 def setUpModule():
-    username = os.getenv("KEENETIC_USERNAME", "admin")
     password = os.getenv("KEENETIC_PASSWORD")
     if password is None:
         password = getpass(f"Username: {username}\nPassword:")
-    endpoint = os.getenv("KEENETIC_ENDPOINT", "my.keenetic.net")
+    endpoint = os.getenv("KEENETIC_ENDPOINT")
+    username = os.getenv("KEENETIC_USERNAME")
     global KEENETIC
     KEENETIC = Keenetic(password=password, login=username, endpoint=endpoint).auth()
 
