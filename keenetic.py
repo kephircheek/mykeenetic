@@ -143,28 +143,23 @@ class Keenetic:
                 return replace(self, opener=opener)
             raise err
 
-    def get(self, path=None):
-        path = path or ""
-        url = f"http://{self.endpoint}/rci/{path}"
-        req = urllib.request.Request(url)
-        response = self.opener.open(req)
-        data = response.read().decode("utf-8")
-        return data
-
-    def post(self, data, path=None):
-        path = path or ""
-        url = f"http://{self.endpoint}/rci/{path}"
-        data = json.dumps(data).encode("utf-8")
-        req = urllib.request.Request(url, data=data, method="POST")
-        req.add_header("Content-Type", "application/json")
+    def run(self, cmd: str = None, data=None):
+        url = f"{self.base_url}/rci/"
+        if cmd is not None:
+            url += cmd.strip().replace(" ", "/")
+        if data is None:
+            req = urllib.request.Request(url)
+        else:
+            data = json.dumps(data).encode("utf-8")
+            req = urllib.request.Request(url, data=data, method="POST")
+            req.add_header("Content-Type", "application/json")
         response = self.opener.open(req)
         if response.getcode() != 200:
-            raise RuntimeError(f"response has code: {rci_response.getcode()} != 200")
+            raise RuntimeError(f"response has code: {response.getcode()} != 200")
         return json.loads(response.read().decode("utf-8"))
 
     def ip_route(self) -> tuple[HostRoute | NetworkRoute, ...]:
-        data = self.get("ip/route/")
-        routes = json.loads(data)
+        routes = self.run("ip route")
         routes = tuple(HostRoute(**r) if "host" in r else NetworkRoute(**r) for r in routes)
         return routes
 
@@ -172,7 +167,7 @@ class Keenetic:
         no = {"no": True} if delete else {}
         data = [{"ip": {"route": asdict(route) | no}} for route in routes]
         data.append({"system": {"configuration": {"save": True}}})
-        response_data = self.post(data=data)
+        response_data = self.run(data=data)
         statuses = []
         for data_amount in response_data:
             if "system" in data_amount:
@@ -221,4 +216,4 @@ class Keenetic:
           "connfree": 32563
         }
         """
-        return self.get("show/system")
+        return self.run("show system")
