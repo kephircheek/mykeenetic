@@ -28,45 +28,6 @@ class Status(Enum):
             return {status_key: status["code"]}
 
 
-def auth_hash(login, passwd, token, realm):
-    md5_hash = hashlib.md5(f"{login}:{realm}:{passwd}".encode()).hexdigest()
-    sha256_hash = hashlib.sha256(f"{token}{md5_hash}".encode()).hexdigest()
-    return sha256_hash
-
-
-def auth(endpoint, login, passwd, retry=None):
-    cookie_jar = http.cookiejar.CookieJar()
-    cookie_handler = urllib.request.HTTPCookieProcessor(cookie_jar)
-    opener = urllib.request.build_opener(cookie_handler)
-
-    url = f"http://{endpoint}/auth"
-    auth_check_req = urllib.request.Request(url)
-    try:
-        response = opener.open(auth_check_req)
-        return opener
-    except urllib.error.HTTPError as err:
-        if err.code == 401:
-            token = err.headers.get("X-NDM-Challenge")
-            realm = err.headers.get("X-NDM-Realm")
-            auth_hash_ = auth_hash(login, passwd, token, realm)
-            data = {"login": login, "password": auth_hash_}
-            data = json.dumps(data).encode("utf-8")
-
-            auth_req = urllib.request.Request(url, data=data, method="POST")
-            auth_req.add_header("Content-Type", "application/json")
-            try:
-                auth_response = opener.open(auth_req)
-                if auth_response.getcode() == 200:
-                    return opener
-                return None
-            except urllib.error.HTTPError as err:
-                if err.code == 401:
-                    return None
-                raise err
-        raise err
-    return None
-
-
 @dataclass(frozen=True)
 class _Route:
     interface: str
@@ -151,11 +112,36 @@ class Keenetic:
     endpoint: str | None = None
     opener: urllib.request.OpenerDirector = None
 
-    def auth(self, retry=None):
-        opener = auth(self.endpoint, self.login, self.password, retry=retry)
-        if opener is None:
-            raise RuntimeError(f"can not authorize on '{self.endpoint}' as '{self.login}'")
-        return replace(self, opener=opener)
+    @property
+    def base_url(self):
+        return f"http://{self.endpoint}"
+
+    def auth_hash(self, token, realm):
+        md5_hash = hashlib.md5(f"{self.login}:{realm}:{self.password}".encode()).hexdigest()
+        sha256_hash = hashlib.sha256(f"{token}{md5_hash}".encode()).hexdigest()
+        return sha256_hash
+
+    def auth(self):
+        cookie_jar = http.cookiejar.CookieJar()
+        cookie_handler = urllib.request.HTTPCookieProcessor(cookie_jar)
+        opener = urllib.request.build_opener(cookie_handler)
+        auth_url = f"{self.base_url}/auth"
+        auth_check_req = urllib.request.Request(auth_url)
+        try:
+            response = opener.open(auth_check_req)
+            return self
+        except urllib.error.HTTPError as err:
+            if err.code == 401:
+                token = err.headers.get("X-NDM-Challenge")
+                realm = err.headers.get("X-NDM-Realm")
+                auth_hash_ = self.auth_hash(token, realm)
+                data = {"login": self.login, "password": auth_hash_}
+                data = json.dumps(data).encode("utf-8")
+                auth_req = urllib.request.Request(auth_url, data=data, method="POST")
+                auth_req.add_header("Content-Type", "application/json")
+                auth_response = opener.open(auth_req)
+                return replace(self, opener=opener)
+            raise err
 
     def get(self, path=None):
         path = path or ""
