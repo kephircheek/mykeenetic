@@ -153,7 +153,7 @@ class Keenetic:
                 return replace(self, opener=opener)
             raise err
 
-    def run(self, cmd: str = None, data=None):
+    def rci(self, cmd: str = None, data=None):
         url = f"{self.base_url}/rci/"
         if cmd is not None:
             url += cmd.strip().replace(" ", "/")
@@ -169,7 +169,7 @@ class Keenetic:
         return json.loads(response.read().decode("utf-8"))
 
     def ip_route(self) -> tuple[HostRoute | NetworkRoute, ...]:
-        routes = self.run("ip route")
+        routes = self.rci("ip route")
         routes = tuple(HostRoute(**r) if "host" in r else NetworkRoute(**r) for r in routes)
         return routes
 
@@ -177,7 +177,7 @@ class Keenetic:
         no = {"no": True} if delete else {}
         data = [{"ip": {"route": asdict(route) | no}} for route in routes]
         data.append({"system": {"configuration": {"save": True}}})
-        response_data = self.run(data=data)
+        response_data = self.rci(data=data)
         statuses = []
         for data_amount in response_data:
             if "system" in data_amount:
@@ -209,7 +209,7 @@ class Keenetic:
         payload = None
         if max_lines is not None:
             payload = {"max-lines": max_lines}
-        response = self.run("show log", payload)
+        response = self.rci("show log", payload)
         if "log" not in response:
             return []
         messages = response["log"].values()
@@ -217,6 +217,6 @@ class Keenetic:
 
     def search_interface_id(self, decription, id_prefix):
         return (
-            i for i in self.run("show interface").values()
+            i for i in self.rci("show interface").values()
             if i.get("description", "") == decription and i["id"].startswith(id_prefix)
         )
