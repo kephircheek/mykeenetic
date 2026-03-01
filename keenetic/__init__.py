@@ -214,3 +214,9 @@ class Keenetic:
             return []
         messages = response["log"].values()
         return [msg for msg in messages if not idents or msg["ident"] in idents]
+
+    def search_interface_id(self, decription, id_prefix):
+        return (
+            i for i in self.run("show interface").values()
+            if i.get("description", "") == decription and i["id"].startswith(id_prefix)
+        )
