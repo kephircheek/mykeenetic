@@ -9,7 +9,8 @@ import os
 import unittest
 from getpass import getpass
 
-from mykeenetic import Keenetic, HostRoute, Status
+from mykeenetic import Keenetic, Status
+from mykeenetic.models import HostRoute
 
 
 def setUpModule():
