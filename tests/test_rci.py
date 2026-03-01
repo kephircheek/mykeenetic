@@ -9,7 +9,7 @@ import os
 import unittest
 from getpass import getpass
 
-from mykeenetic import Keenetic, Status
+from mykeenetic.rci import Keenetic, Status
 from mykeenetic.models import HostRoute
 
 
@@ -27,8 +27,12 @@ class TestRouteIP(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.new_routes = [
-            HostRoute(**{"interface": "Proxy0", "comment": "test", "host": "111.111.111.111"}),
-            HostRoute(**{"interface": "Proxy0", "comment": "test", "host": "222.222.222.222"}),
+            HostRoute(
+                **{"interface": "Proxy0", "comment": "test", "host": "111.111.111.111"}
+            ),
+            HostRoute(
+                **{"interface": "Proxy0", "comment": "test", "host": "222.222.222.222"}
+            ),
         ]
 
     def test_ip_route(self):
@@ -36,7 +40,9 @@ class TestRouteIP(unittest.TestCase):
         self.assertNotEqual(len(routes), 0)
 
     def test_ip_route_del_non_existent(self):
-        self.assertListEqual(KEENETIC.ip_route_del(self.new_routes), [Status.NO_SUCH_ROUTE] * 2)
+        self.assertListEqual(
+            KEENETIC.ip_route_del(self.new_routes), [Status.NO_SUCH_ROUTE] * 2
+        )
 
     def test_ip_route_add_and_del(self):
         self.assertListEqual(
