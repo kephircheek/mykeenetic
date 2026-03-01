@@ -204,3 +204,13 @@ class Keenetic:
 
     def ip_route_del(self, routes: list[HostRoute | NetworkRoute]):
         return self._ip_route_batched_update(routes, delete=True)
+
+    def show_log(self, idents: set = None, max_lines=None):
+        payload = None
+        if max_lines is not None:
+            payload = {"max-lines": max_lines}
+        response = self.run("show log", payload)
+        if "log" not in response:
+            return []
+        messages = response["log"].values()
+        return [msg for msg in messages if not idents or msg["ident"] in idents]
