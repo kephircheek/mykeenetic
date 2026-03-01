@@ -24,3 +24,4 @@ dev = [
     "python-dotenv>=1.2",
     "pre-commit>=3.0",
 ]
+ci = ["toml==0.10.2"]
