@@ -34,11 +34,14 @@ class Keenetic:
     login: str | None = None
     endpoint: str | None = None
     opener: urllib.request.OpenerDirector = None
-    secure: bool = False
+    secure: bool = None
 
     @property
     def endpoint_(self):
         return self.endpoint or "my.keenetic.net"
+
+    def secure_(self):
+        return (self.endpoint is not None) if self.secure is None else self.secure
 
     @property
     def login_(self):
@@ -46,11 +49,13 @@ class Keenetic:
 
     @property
     def base_url(self):
-        scheme = "https" if self.secure else "http"
+        scheme = "https" if self.secure_ else "http"
         return f"{scheme}://{self.endpoint_}"
 
     def auth_hash(self, token, realm):
-        md5_hash = hashlib.md5(f"{self.login_}:{realm}:{self.password}".encode()).hexdigest()
+        md5_hash = hashlib.md5(
+            f"{self.login_}:{realm}:{self.password}".encode()
+        ).hexdigest()
         sha256_hash = hashlib.sha256(f"{token}{md5_hash}".encode()).hexdigest()
         return sha256_hash
 
@@ -93,7 +98,9 @@ class Keenetic:
 
     def ip_route(self) -> tuple[HostRoute | NetworkRoute, ...]:
         routes = self.rci("ip route")
-        routes = tuple(HostRoute(**r) if "host" in r else NetworkRoute(**r) for r in routes)
+        routes = tuple(
+            HostRoute(**r) if "host" in r else NetworkRoute(**r) for r in routes
+        )
         return routes
 
     def _ip_route_update(self, routes: list[HostRoute | NetworkRoute], delete=False):
@@ -112,9 +119,13 @@ class Keenetic:
                     statuses.append(Status.from_json(status))
         return statuses
 
-    def _ip_route_batched_update(self, routes: list[HostRoute | NetworkRoute], delete=False):
+    def _ip_route_batched_update(
+        self, routes: list[HostRoute | NetworkRoute], delete=False
+    ):
         batch_size = 1024
-        routes_batches = (routes[i : i + batch_size] for i in range(0, len(routes), batch_size))
+        routes_batches = (
+            routes[i : i + batch_size] for i in range(0, len(routes), batch_size)
+        )
         return list(
             itertools.chain.from_iterable(
                 self._ip_route_update(routes_batch, delete=delete)
