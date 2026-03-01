@@ -1,7 +1,7 @@
 import unittest
 from dataclasses import asdict
 
-from keenetic import HostRoute, NetworkRoute, as_route
+from mykeenetic import HostRoute, NetworkRoute, as_route
 
 
 class TestRouteObject(unittest.TestCase):
