@@ -24,7 +24,6 @@ class Status(Enum):
         try:
             return cls[status_key]
         except KeyError:
-            print(json.dumps(data))
             return {status_key: status["code"]}
 
 
@@ -138,7 +137,7 @@ class Keenetic:
         auth_url = f"{self.base_url}/auth"
         auth_check_req = urllib.request.Request(auth_url)
         try:
-            response = opener.open(auth_check_req)
+            opener.open(auth_check_req)
             return self
         except urllib.error.HTTPError as err:
             if err.code == 401:
@@ -149,7 +148,7 @@ class Keenetic:
                 data = json.dumps(data).encode("utf-8")
                 auth_req = urllib.request.Request(auth_url, data=data, method="POST")
                 auth_req.add_header("Content-Type", "application/json")
-                auth_response = opener.open(auth_req)
+                opener.open(auth_req)
                 return replace(self, opener=opener)
             raise err
 
@@ -217,6 +216,7 @@ class Keenetic:
 
     def search_interface_id(self, decription, id_prefix):
         return (
-            i for i in self.rci("show interface").values()
+            i
+            for i in self.rci("show interface").values()
             if i.get("description", "") == decription and i["id"].startswith(id_prefix)
         )

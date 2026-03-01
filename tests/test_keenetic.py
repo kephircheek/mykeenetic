@@ -9,15 +9,15 @@ import os
 import unittest
 from getpass import getpass
 
-from keenetic import *
+from keenetic import Keenetic, HostRoute, Status
 
 
 def setUpModule():
+    endpoint = os.getenv("KEENETIC_ENDPOINT")
+    username = os.getenv("KEENETIC_USERNAME")
     password = os.getenv("KEENETIC_PASSWORD")
     if password is None:
         password = getpass(f"Username: {username}\nPassword:")
-    endpoint = os.getenv("KEENETIC_ENDPOINT")
-    username = os.getenv("KEENETIC_USERNAME")
     global KEENETIC
     KEENETIC = Keenetic(password=password, login=username, endpoint=endpoint).auth()
 
