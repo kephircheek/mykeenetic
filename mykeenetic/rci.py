@@ -5,7 +5,7 @@ import itertools
 import json
 import urllib.parse
 import urllib.request
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, replace, field
 from enum import Enum
 
 from .models import HostRoute, NetworkRoute
@@ -30,7 +30,7 @@ class Status(Enum):
 
 @dataclass(frozen=True)
 class Keenetic:
-    password: str
+    password: str = field(repr=False)
     login: str | None = None
     endpoint: str | None = None
     opener: urllib.request.OpenerDirector = None
