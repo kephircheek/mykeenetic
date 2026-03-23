@@ -40,6 +40,7 @@ class Keenetic:
     def endpoint_(self):
         return self.endpoint or "my.keenetic.net"
 
+    @property
     def secure_(self):
         return (self.endpoint is not None) if self.secure is None else self.secure
 
